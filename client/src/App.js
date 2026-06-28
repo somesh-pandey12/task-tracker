@@ -2,34 +2,52 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API = 'http://localhost:5000/api/tasks';
+const API = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks`;
 
-function App() {
-  const [tasks, setTasks]       = useState([]);
-  const [title, setTitle]       = useState('');
-  const [desc, setDesc]         = useState('');
-  const [error, setError]       = useState('');
-  const [editId, setEditId]     = useState(null);
+const FILTERS = ['All', 'Pending', 'Completed'];
+
+export default function App() {
+  const [tasks, setTasks]         = useState([]);
+  const [title, setTitle]         = useState('');
+  const [desc, setDesc]           = useState('');
+  const [error, setError]         = useState('');
+  const [filter, setFilter]       = useState('All');
+  const [editId, setEditId]       = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc]   = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [toast, setToast]         = useState('');
 
   useEffect(() => { fetchTasks(); }, []);
 
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  };
+
   const fetchTasks = async () => {
-    const res = await axios.get(API);
-    setTasks(res.data);
+    setLoading(true);
+    try {
+      const res = await axios.get(API);
+      setTasks(res.data);
+    } catch {
+      showToast('❌ Cannot connect to server');
+    }
+    setLoading(false);
   };
 
   const addTask = async () => {
-    if (!title.trim()) { setError('Title is required!'); return; }
+    if (!title.trim()) { setError('Task title is required.'); return; }
     setError('');
-    await axios.post(API, { title, description: desc });
+    await axios.post(API, { title: title.trim(), description: desc.trim() });
     setTitle(''); setDesc('');
+    showToast('✅ Task added!');
     fetchTasks();
   };
 
   const deleteTask = async (id) => {
     await axios.delete(`${API}/${id}`);
+    showToast('🗑 Task deleted');
     fetchTasks();
   };
 
@@ -40,8 +58,10 @@ function App() {
   };
 
   const saveEdit = async () => {
-    await axios.put(`${API}/${editId}`, { title: editTitle, description: editDesc });
+    if (!editTitle.trim()) return;
+    await axios.put(`${API}/${editId}`, { title: editTitle.trim(), description: editDesc.trim() });
     setEditId(null);
+    showToast('✏️ Task updated!');
     fetchTasks();
   };
 
@@ -51,57 +71,126 @@ function App() {
     fetchTasks();
   };
 
+  const filtered = tasks.filter(t => {
+    if (filter === 'All') return true;
+    return t.status === filter.toLowerCase();
+  });
+
+  const counts = {
+    all: tasks.length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+  };
+
   return (
-    <div className="app">
-      <h1>📝 Task Tracker</h1>
+    <div className="page">
+      {toast && <div className="toast">{toast}</div>}
 
-      <div className="form">
-        <input
-          placeholder="Task title *"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-        />
-        <input
-          placeholder="Description (optional)"
-          value={desc}
-          onChange={e => setDesc(e.target.value)}
-        />
-        {error && <p className="error">{error}</p>}
-        <button onClick={addTask}>Add Task</button>
-      </div>
-
-      <div className="tasks">
-        {tasks.length === 0 && <p className="empty">No tasks yet. Add one above!</p>}
-        {tasks.map(task => (
-          <div key={task._id} className={`task ${task.status}`}>
-            {editId === task._id ? (
-              <div className="edit-form">
-                <input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
-                <input value={editDesc}  onChange={e => setEditDesc(e.target.value)} />
-                <button onClick={saveEdit}>Save</button>
-                <button onClick={() => setEditId(null)}>Cancel</button>
-              </div>
-            ) : (
-              <>
-                <div className="task-info">
-                  <h3>{task.title}</h3>
-                  {task.description && <p>{task.description}</p>}
-                  <span className={`badge ${task.status}`}>{task.status}</span>
-                </div>
-                <div className="task-actions">
-                  <button onClick={() => toggleStatus(task)}>
-                    {task.status === 'pending' ? '✅ Complete' : '↩ Undo'}
-                  </button>
-                  <button onClick={() => startEdit(task)}>✏️ Edit</button>
-                  <button className="del" onClick={() => deleteTask(task._id)}>🗑 Delete</button>
-                </div>
-              </>
-            )}
+      <header className="header">
+        <div className="header-inner">
+          <div className="logo">
+            <div className="logo-icon">T</div>
+            <span>TaskFlow</span>
           </div>
-        ))}
-      </div>
+          <div className="stats">
+            <div className="stat"><span>{counts.all}</span>Total</div>
+            <div className="stat"><span>{counts.pending}</span>Pending</div>
+            <div className="stat done"><span>{counts.completed}</span>Done</div>
+          </div>
+        </div>
+      </header>
+
+      <main className="main">
+        {/* Add Task Card */}
+        <div className="card add-card">
+          <h2>Add New Task</h2>
+          <div className="input-group">
+            <input
+              className={error ? 'input error-input' : 'input'}
+              placeholder="What needs to be done?"
+              value={title}
+              onChange={e => { setTitle(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && addTask()}
+            />
+            {error && <p className="error-msg">{error}</p>}
+            <input
+              className="input"
+              placeholder="Add a description (optional)"
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+            />
+          </div>
+          <button className="btn-primary" onClick={addTask}>+ Add Task</button>
+        </div>
+
+        {/* Filters */}
+        <div className="filters">
+          {FILTERS.map(f => (
+            <button
+              key={f}
+              className={filter === f ? 'filter-btn active' : 'filter-btn'}
+              onClick={() => setFilter(f)}
+            >
+              {f}
+              <span className="filter-count">
+                {f === 'All' ? counts.all : f === 'Pending' ? counts.pending : counts.completed}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Task List */}
+        {loading ? (
+          <div className="empty-state">Loading tasks...</div>
+        ) : filtered.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">📋</div>
+            <p>{filter === 'All' ? 'No tasks yet. Add one above!' : `No ${filter.toLowerCase()} tasks.`}</p>
+          </div>
+        ) : (
+          <div className="task-list">
+            {filtered.map(task => (
+              <div key={task._id} className={`task-card ${task.status}`}>
+                {editId === task._id ? (
+                  <div className="edit-mode">
+                    <input className="input" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                    <input className="input" value={editDesc}  onChange={e => setEditDesc(e.target.value)} />
+                    <div className="edit-actions">
+                      <button className="btn-primary small" onClick={saveEdit}>Save</button>
+                      <button className="btn-ghost small" onClick={() => setEditId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="task-left">
+                      <button
+                        className={`check-btn ${task.status === 'completed' ? 'checked' : ''}`}
+                        onClick={() => toggleStatus(task)}
+                        title={task.status === 'completed' ? 'Mark pending' : 'Mark complete'}
+                      >
+                        {task.status === 'completed' ? '✓' : ''}
+                      </button>
+                      <div className="task-body">
+                        <p className={`task-title ${task.status === 'completed' ? 'striked' : ''}`}>
+                          {task.title}
+                        </p>
+                        {task.description && <p className="task-desc">{task.description}</p>}
+                      </div>
+                    </div>
+                    <div className="task-right">
+                      <span className={`badge ${task.status}`}>
+                        {task.status === 'completed' ? 'Done' : 'Pending'}
+                      </span>
+                      <button className="icon-btn" onClick={() => startEdit(task)} title="Edit">✏️</button>
+                      <button className="icon-btn danger" onClick={() => deleteTask(task._id)} title="Delete">🗑</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
-
-export default App;
