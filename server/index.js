@@ -8,7 +8,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://task-tracker-xxx.vercel.app'  // ← apna actual Vercel URL
+    'https://task-tracker-jwmx.vercel.app'  
   ]
 }));
 
