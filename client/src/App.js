@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+mport { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
-
+ 
 const API = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks`;
-
+ 
 const FILTERS = ['All', 'Pending', 'Completed'];
-
+ 
 export default function App() {
   const [tasks, setTasks]         = useState([]);
   const [title, setTitle]         = useState('');
@@ -17,14 +17,15 @@ export default function App() {
   const [editDesc, setEditDesc]   = useState('');
   const [loading, setLoading]     = useState(false);
   const [toast, setToast]         = useState('');
-
+ 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchTasks(); }, []);
-
+ 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(''), 2500);
   };
-
+ 
   const fetchTasks = async () => {
     setLoading(true);
     try {
@@ -35,7 +36,7 @@ export default function App() {
     }
     setLoading(false);
   };
-
+ 
   const addTask = async () => {
     if (!title.trim()) { setError('Task title is required.'); return; }
     setError('');
@@ -44,19 +45,19 @@ export default function App() {
     showToast('✅ Task added!');
     fetchTasks();
   };
-
+ 
   const deleteTask = async (id) => {
     await axios.delete(`${API}/${id}`);
     showToast('🗑 Task deleted');
     fetchTasks();
   };
-
+ 
   const startEdit = (task) => {
     setEditId(task._id);
     setEditTitle(task.title);
     setEditDesc(task.description);
   };
-
+ 
   const saveEdit = async () => {
     if (!editTitle.trim()) return;
     await axios.put(`${API}/${editId}`, { title: editTitle.trim(), description: editDesc.trim() });
@@ -64,28 +65,28 @@ export default function App() {
     showToast('✏️ Task updated!');
     fetchTasks();
   };
-
+ 
   const toggleStatus = async (task) => {
     const newStatus = task.status === 'pending' ? 'completed' : 'pending';
     await axios.put(`${API}/${task._id}`, { status: newStatus });
     fetchTasks();
   };
-
+ 
   const filtered = tasks.filter(t => {
     if (filter === 'All') return true;
     return t.status === filter.toLowerCase();
   });
-
+ 
   const counts = {
     all: tasks.length,
     pending: tasks.filter(t => t.status === 'pending').length,
     completed: tasks.filter(t => t.status === 'completed').length,
   };
-
+ 
   return (
     <div className="page">
       {toast && <div className="toast">{toast}</div>}
-
+ 
       <header className="header">
         <div className="header-inner">
           <div className="logo">
@@ -99,9 +100,8 @@ export default function App() {
           </div>
         </div>
       </header>
-
+ 
       <main className="main">
-        {/* Add Task Card */}
         <div className="card add-card">
           <h2>Add New Task</h2>
           <div className="input-group">
@@ -122,8 +122,7 @@ export default function App() {
           </div>
           <button className="btn-primary" onClick={addTask}>+ Add Task</button>
         </div>
-
-        {/* Filters */}
+ 
         <div className="filters">
           {FILTERS.map(f => (
             <button
@@ -138,8 +137,7 @@ export default function App() {
             </button>
           ))}
         </div>
-
-        {/* Task List */}
+ 
         {loading ? (
           <div className="empty-state">Loading tasks...</div>
         ) : filtered.length === 0 ? (

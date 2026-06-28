@@ -6,7 +6,10 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-  origin: '*'
+  origin: [
+    'http://localhost:3000',
+    'https://task-tracker-xxx.vercel.app'  // ← apna actual Vercel URL
+  ]
 }));
 
 app.use(express.json());
