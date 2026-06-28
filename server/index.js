@@ -8,7 +8,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://task-tracker-jwmx.vercel.app'  
+    'https://task-tracker-blue-gamma.vercel.app'
   ]
 }));
 
